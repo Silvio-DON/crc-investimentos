@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Classificador de Risco de Cliente</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a1a 0%, #0d1b2a 50%, #1a2a4a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 30px 16px;
+      color: #e0e0e0;
+    }
+
+    .container {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 36px;
+      width: 100%;
+      max-width: 780px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    header { text-align: center; margin-bottom: 28px; }
+    header .icon { font-size: 3rem; }
+    header h1 { font-size: 1.7rem; font-weight: 700; margin: 8px 0 4px; color: #fff; }
+    header p { font-size: 0.9rem; color: #94a3b8; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .field input, .field select {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      transition: border-color 0.2s;
+      outline: none;
+      width: 100%;
+    }
+    .field input:focus, .field select:focus {
+      border-color: #3b82f6;
+      background: rgba(59,130,246,0.08);
+    }
+    .field select option { background: #0d1b2a; }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #1d4ed8, #1e40af);
+      color: white;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #result {
+      margin-top: 24px;
+      padding: 24px;
+      border-radius: 14px;
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    #result.baixo {
+      background: rgba(34,197,94,0.12);
+      border: 1px solid rgba(34,197,94,0.4);
+    }
+    #result.medio {
+      background: rgba(251,146,60,0.12);
+      border: 1px solid rgba(251,146,60,0.4);
+    }
+    #result.alto {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.4);
+    }
+
+    .result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .result-icon { font-size: 2.5rem; }
+    .result-title { font-size: 1.3rem; font-weight: 700; }
+    .result-subtitle { font-size: 0.85rem; color: #94a3b8; margin-top: 2px; }
+
+    .prob-bars { display: flex; flex-direction: column; gap: 10px; }
+    .prob-row { display: flex; flex-direction: column; gap: 4px; }
+    .prob-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: #94a3b8;
+    }
+    .bar-track {
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.8s cubic-bezier(.4,0,.2,1);
+    }
+    .bar-fill.baixo { background: linear-gradient(90deg, #16a34a, #4ade80); }
+    .bar-fill.medio { background: linear-gradient(90deg, #ea580c, #fb923c); }
+    .bar-fill.alto  { background: linear-gradient(90deg, #dc2626, #f87171); }
+
+    .disclaimer {
+      margin-top: 20px;
+      padding: 12px 16px;
+      background: rgba(255,193,7,0.08);
+      border: 1px solid rgba(255,193,7,0.25);
+      border-radius: 10px;
+      font-size: 0.78rem;
+      color: #fbbf24;
+      line-height: 1.5;
+    }
+
+    .error-box {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 10px;
+      color: #f87171;
+      font-size: 0.9rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="icon">📊</div>
+    <h1>Classificador de Risco de Cliente</h1>
+    <p>Preencha os dados financeiros do cliente para obter a classificação de risco</p>
+  </header>
+
+  <div class="form-grid">
+    <div class="field">
+      <label>Idade</label>
+      <input type="number" id="idade" min="18" max="100" placeholder="ex: 35" />
+    </div>
+    <div class="field">
+      <label>Renda Mensal (R$)</label>
+      <input type="number" id="renda_mensal" min="0" placeholder="ex: 8000" />
+    </div>
+    <div class="field">
+      <label>Patrimônio Total (R$)</label>
+      <input type="number" id="patrimonio" min="0" placeholder="ex: 150000" />
+    </div>
+    <div class="field">
+      <label>Histórico de Crédito</label>
+      <select id="historico_credito">
+        <option value="">Selecione</option>
+        <option value="0">0 — Ruim</option>
+        <option value="1">1 — Regular</option>
+        <option value="2">2 — Bom</option>
+        <option value="3">3 — Ótimo</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Tempo de Emprego (anos)</label>
+      <input type="number" id="tempo_emprego" min="0" placeholder="ex: 5" />
+    </div>
+    <div class="field">
+      <label>Total de Dívidas (R$)</label>
+      <input type="number" id="dividas" min="0" placeholder="ex: 20000" />
+    </div>
+    <div class="field">
+      <label>Dependentes</label>
+      <input type="number" id="dependentes" min="0" max="20" placeholder="ex: 2" />
+    </div>
+    <div class="field">
+      <label>Possui Imóvel?</label>
+      <select id="tem_imovel">
+        <option value="">Selecione</option>
+        <option value="1">Sim</option>
+        <option value="0">Não</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Possui Investimentos?</label>
+      <select id="tem_investimentos">
+        <option value="">Selecione</option>
+        <option value="1">Sim</option>
+        <option value="0">Não</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Score de Crédito (300–1000)</label>
+      <input type="number" id="score_credito" min="300" max="1000" placeholder="ex: 750" />
+    </div>
+  </div>
+
+  <button class="btn" id="btn-predict" onclick="predict()">
+    🔍 Classificar Risco do Cliente
+  </button>
+
+  <div class="error-box" id="error-box"></div>
+
+  <div id="result">
+    <div class="result-header">
+      <div class="result-icon" id="result-icon"></div>
+      <div>
+        <div class="result-title" id="result-title"></div>
+        <div class="result-subtitle" id="result-subtitle"></div>
+      </div>
+    </div>
+    <div class="prob-bars">
+      <div class="prob-row">
+        <div class="prob-label">
+          <span>🟢 Baixo Risco</span>
+          <span id="prob-baixo-text">0%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill baixo" id="bar-baixo" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="prob-row">
+        <div class="prob-label">
+          <span>🟠 Médio Risco</span>
+          <span id="prob-medio-text">0%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill medio" id="bar-medio" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="prob-row">
+        <div class="prob-label">
+          <span>🔴 Alto Risco</span>
+          <span id="prob-alto-text">0%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill alto" id="bar-alto" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+    <div class="disclaimer">
+      ⚠️ <strong>Aviso:</strong> Esta classificação é gerada por um modelo de machine learning
+      com fins de apoio à decisão. Não substitui a análise completa do consultor de investimentos.
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_URL = 'http://localhost:5000/predict';
+  const CAMPOS = [
+    'idade', 'renda_mensal', 'patrimonio', 'historico_credito',
+    'tempo_emprego', 'dividas', 'dependentes', 'tem_imovel',
+    'tem_investimentos', 'score_credito'
+  ];
+
+  function showError(msg) {
+    const box = document.getElementById('error-box');
+    box.textContent = '❌ ' + msg;
+    box.style.display = 'block';
+    setTimeout(() => { box.style.display = 'none'; }, 5000);
+  }
+
+  function buildPayload() {
+    const payload = {};
+    for (const campo of CAMPOS) {
+      const val = document.getElementById(campo).value.trim();
+      if (val === '') return null;
+      payload[campo] = parseFloat(val);
+    }
+    return payload;
+  }
+
+  async function predict() {
+    document.getElementById('error-box').style.display = 'none';
+    document.getElementById('result').style.display = 'none';
+
+    const payload = buildPayload();
+    if (!payload) {
+      showError('Preencha todos os campos antes de continuar.');
+      return;
+    }
+
+    const btn = document.getElementById('btn-predict');
+    btn.disabled = true;
+    btn.textContent = '⏳ Analisando...';
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        showError(data.error || 'Erro na comunicação com o servidor.');
+        return;
+      }
+
+      showResult(data);
+
+    } catch (e) {
+      showError('Não foi possível conectar ao servidor. Verifique se o backend está rodando na porta 5000.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Classificar Risco do Cliente';
+    }
+  }
+
+  function showResult(data) {
+    const classes = { 0: 'baixo', 1: 'medio', 2: 'alto' };
+    const icones  = { 0: '✅', 1: '⚠️', 2: '🚨' };
+    const cls = classes[data.prediction];
+
+    const resultDiv = document.getElementById('result');
+    resultDiv.className = cls;
+    document.getElementById('result-icon').textContent = icones[data.prediction];
+    document.getElementById('result-title').textContent = data.resultado;
+    document.getElementById('result-subtitle').textContent =
+      `Confiança do modelo: ${data.confianca}%`;
+
+    document.getElementById('prob-baixo-text').textContent = data.probabilidades.baixo + '%';
+    document.getElementById('prob-medio-text').textContent = data.probabilidades.medio + '%';
+    document.getElementById('prob-alto-text').textContent  = data.probabilidades.alto  + '%';
+
+    requestAnimationFrame(() => {
+      document.getElementById('bar-baixo').style.width = data.probabilidades.baixo + '%';
+      document.getElementById('bar-medio').style.width = data.probabilidades.medio + '%';
+      document.getElementById('bar-alto').style.width  = data.probabilidades.alto  + '%';
+    });
+
+    resultDiv.style.display = 'block';
+  }
+</script>
+</body>
+</html>
